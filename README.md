@@ -60,6 +60,17 @@ On Render:
 The frontend is served from the same origin as the API. React uses hash routing in production so app routes do not
 conflict with API endpoints like `GET /rules`.
 
+## Shareable Interface Demo
+
+The repository also includes a GitHub Pages workflow that publishes a frontend-only demo with deterministic mock data.
+It is meant for quick team review of the interface without standing up the FastAPI backend.
+
+Expected public URL after the workflow succeeds:
+
+```text
+https://mschapi.github.io/fraud-rules-mvp/
+```
+
 ## Access Needed
 
 No GitHub, GitLab, database, warehouse, or OpenAI API access is required for this MVP. Everything runs with mock data and mock integrations.
