@@ -1,4 +1,4 @@
-import type { AiSuggestion, PrResponse, Rule, RulePayload, SimulationResponse, Variable } from "./types";
+import type { AiSuggestion, PrResponse, Rule, RulePayload, SimulationResponse, SimulationRun, Variable } from "./types";
 import { ruleToPython } from "../features/rules/pythonGenerator";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
@@ -124,6 +124,18 @@ function writeRules(rules: Rule[]) {
   window.localStorage.setItem("fraud-rules-demo", JSON.stringify(rules));
 }
 
+function readSimulationRuns(ruleId: string): SimulationRun[] {
+  const stored = window.localStorage.getItem(`fraud-rules-demo-simulations-${ruleId}`);
+  return stored ? (JSON.parse(stored) as SimulationRun[]) : [];
+}
+
+function writeSimulationRun(run: SimulationRun) {
+  window.localStorage.setItem(
+    `fraud-rules-demo-simulations-${run.rule_id}`,
+    JSON.stringify([run, ...readSimulationRuns(run.rule_id)]),
+  );
+}
+
 function toRule(payload: RulePayload, status = "active"): Rule {
   const timestamp = new Date().toISOString();
   return {
@@ -162,7 +174,7 @@ const demoApi = {
     writeRules(rules.map((item) => (item.id === id ? nextRule : item)));
     return nextRule;
   },
-  simulate: async (id: string, _payload: { start_date: string; end_date: string }): Promise<SimulationResponse> => {
+  simulate: async (id: string, payload: { start_date?: string; end_date?: string; query_text?: string }): Promise<SimulationResponse> => {
     const rules = readRules();
     const metrics = {
       total_transactions: 5000,
@@ -180,9 +192,24 @@ const demoApi = {
       fraud_rate_global: 3.52,
       lift: 6.72,
     };
+    const warnings = payload.query_text
+      ? ["Demo query mode parses the request shape but still uses deterministic mock transactions."]
+      : ["Demo mode uses deterministic mock historical transactions."];
+    writeSimulationRun({
+      id: crypto.randomUUID(),
+      rule_id: id,
+      mode: payload.query_text ? "query" : "date_range",
+      created_at: new Date().toISOString(),
+      start_date: payload.start_date,
+      end_date: payload.end_date,
+      query_text: payload.query_text,
+      metrics,
+      warnings,
+    });
     writeRules(rules.map((item) => (item.id === id ? { ...item, last_simulation: metrics } : item)));
-    return { metrics, warnings: ["Demo mode uses deterministic mock historical transactions."] };
+    return { metrics, warnings };
   },
+  simulationHistory: async (id: string) => readSimulationRuns(id),
   suggestRule: async (message: string): Promise<AiSuggestion> => {
     const lowered = message.toLowerCase();
     const proposed_rule: RulePayload = {
@@ -247,11 +274,12 @@ const liveApi = {
       method: "PUT",
       body: JSON.stringify(payload),
     }),
-  simulate: (id: string, payload: { start_date: string; end_date: string }) =>
+  simulate: (id: string, payload: { start_date?: string; end_date?: string; query_text?: string }) =>
     request<SimulationResponse>(`/rules/${id}/simulate`, {
       method: "POST",
       body: JSON.stringify(payload),
     }),
+  simulationHistory: (id: string) => request<SimulationRun[]>(`/rules/${id}/simulations`),
   suggestRule: (message: string) =>
     request<AiSuggestion>("/ai/rule-suggestion", {
       method: "POST",

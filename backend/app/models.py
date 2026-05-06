@@ -24,3 +24,16 @@ class Rule(Base):
         onupdate=datetime.utcnow,
     )
 
+
+class SimulationRun(Base):
+    __tablename__ = "simulation_runs"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
+    rule_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    mode: Mapped[str] = mapped_column(String(32), nullable=False)
+    start_date: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    end_date: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    query_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    metrics_json: Mapped[str] = mapped_column(Text, nullable=False)
+    warnings_json: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)

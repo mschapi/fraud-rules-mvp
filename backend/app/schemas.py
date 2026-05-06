@@ -68,13 +68,24 @@ class RuleOut(RuleBase):
 
 
 class SimulationRequest(BaseModel):
-    start_date: date
-    end_date: date
+    start_date: date | None = None
+    end_date: date | None = None
+    query_text: str | None = None
 
 
 class SimulationResponse(BaseModel):
     metrics: SimulationMetrics
     warnings: list[str]
+
+
+class SimulationRunOut(SimulationResponse):
+    id: str
+    rule_id: str
+    mode: Literal["date_range", "query"]
+    created_at: datetime
+    start_date: date | None = None
+    end_date: date | None = None
+    query_text: str | None = None
 
 
 class AiSuggestionRequest(BaseModel):

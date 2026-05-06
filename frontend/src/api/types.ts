@@ -33,6 +33,8 @@ export type Rule = RulePayload & {
   last_simulation: SimulationMetrics | null;
 };
 
+export type SimulationMode = "date_range" | "query";
+
 export type SimulationMetrics = {
   total_transactions: number;
   matched_transactions: number;
@@ -53,6 +55,16 @@ export type SimulationMetrics = {
 export type SimulationResponse = {
   metrics: SimulationMetrics;
   warnings: string[];
+};
+
+export type SimulationRun = SimulationResponse & {
+  id: string;
+  rule_id: string;
+  mode: SimulationMode;
+  created_at: string;
+  start_date?: string;
+  end_date?: string;
+  query_text?: string;
 };
 
 export type AiSuggestion = {

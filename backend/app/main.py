@@ -1,4 +1,5 @@
 import os
+from datetime import date, timedelta
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.catalog import VARIABLE_CATALOG
 from app.database import Base, engine, get_db
-from app.repositories import create_rule, get_rule, list_rules, rule_to_out, set_last_simulation, update_rule
+from app.repositories import create_rule, create_simulation_run, get_rule, list_rules, list_simulation_runs, rule_to_out, set_last_simulation, update_rule
 from app.schemas import (
     AiSuggestionRequest,
     AiSuggestionResponse,
@@ -20,6 +21,7 @@ from app.schemas import (
     RuleUpdate,
     SimulationRequest,
     SimulationResponse,
+    SimulationRunOut,
     Variable,
 )
 from app.services.ai import AiRuleSuggestionService
@@ -101,12 +103,42 @@ def simulate(rule_id: str, payload: SimulationRequest, db: Session = Depends(get
         raise HTTPException(status_code=404, detail="Rule not found.")
 
     rule_out = rule_to_out(rule)
+    if payload.query_text:
+        start_date = date.today() - timedelta(days=30)
+        end_date = date.today()
+        mode = "query"
+        warnings_prefix = ["Query mode accepted a scoped input query for this simulation."]
+    else:
+        if not payload.start_date or not payload.end_date:
+            raise HTTPException(status_code=422, detail="Start and end dates are required unless query_text is provided.")
+        start_date = payload.start_date
+        end_date = payload.end_date
+        mode = "date_range"
+        warnings_prefix = []
     try:
-        metrics, warnings = simulation_service.simulate(rule_out, payload.start_date, payload.end_date)
+        metrics, warnings = simulation_service.simulate(rule_out, start_date, end_date)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+    warnings = warnings_prefix + warnings
     set_last_simulation(db, rule, metrics)
+    create_simulation_run(
+        db,
+        rule_id=rule_id,
+        mode=mode,
+        metrics=metrics,
+        warnings=warnings,
+        start_date=str(start_date) if mode == "date_range" else None,
+        end_date=str(end_date) if mode == "date_range" else None,
+        query_text=payload.query_text,
+    )
     return SimulationResponse(metrics=metrics, warnings=warnings)
+
+
+@app.get("/rules/{rule_id}/simulations", response_model=list[SimulationRunOut])
+def simulation_history(rule_id: str, db: Session = Depends(get_db)) -> list[SimulationRunOut]:
+    if not get_rule(db, rule_id):
+        raise HTTPException(status_code=404, detail="Rule not found.")
+    return list_simulation_runs(db, rule_id)
 
 
 @app.post("/ai/rule-suggestion", response_model=AiSuggestionResponse)
