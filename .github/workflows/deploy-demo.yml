@@ -32,6 +32,8 @@ jobs:
           VITE_DEMO_MODE: "true"
           VITE_BASE_PATH: /fraud-rules-mvp/
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: frontend/dist
