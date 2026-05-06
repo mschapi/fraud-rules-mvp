@@ -1,0 +1,11 @@
+.venv/
+backend/.venv/
+backend/fraud_rules.db
+backend/*.log
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+*.pyc
+__pycache__/
