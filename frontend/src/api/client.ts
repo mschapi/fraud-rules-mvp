@@ -1,4 +1,16 @@
-import type { AiSuggestion, Alarm, AlarmPayload, PrResponse, Rule, RulePayload, SimulationResponse, SimulationRun, Variable } from "./types";
+import type {
+  AiSuggestion,
+  Alarm,
+  AlarmPayload,
+  AssistantChatRequest,
+  AssistantChatResponse,
+  PrResponse,
+  Rule,
+  RulePayload,
+  SimulationResponse,
+  SimulationRun,
+  Variable,
+} from "./types";
 import { ruleToPython } from "../features/rules/pythonGenerator";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
@@ -315,6 +327,60 @@ const demoApi = {
       warnings: ["Demo mode does not call an AI API. The generated Python is deterministic from the structured rule."],
     };
   },
+  assistantChat: async (payload: AssistantChatRequest): Promise<AssistantChatResponse> => {
+    const lowered = payload.message.toLowerCase();
+    const suggested_rule: RulePayload | undefined =
+      payload.context === "rules"
+        ? {
+            name: lowered.includes("card") ? "new_card_high_score" : "analyst_suggested_rule",
+            description: "Suggested from assistant context and demo dataset profile.",
+            action: lowered.includes("reject") || lowered.includes("bloquear") ? "reject" : "review",
+            conditions: {
+              all: lowered.includes("new") || lowered.includes("nuevo")
+                ? [
+                    { field: "user_age_days", operator: "<=", value: 7 },
+                    { field: "model_score", operator: ">=", value: 0.75 },
+                  ]
+                : [{ field: "model_score", operator: ">=", value: 0.8 }],
+            },
+          }
+        : undefined;
+    const suggested_alarm: AlarmPayload | undefined =
+      payload.context === "alerts"
+        ? {
+            name: lowered.includes("approval") ? "approval_rate_drop_alarm" : "anomaly_shift_alarm",
+            description: "Suggested anomaly alert from assistant context.",
+            signal: lowered.includes("approval") ? "approval_rate_delta" : "model_score_p95_delta",
+            operator: lowered.includes("drop") ? "<" : ">",
+            threshold: lowered.includes("critical") ? 15 : 8,
+            window: "30m",
+            severity: lowered.includes("critical") ? "critical" : "high",
+            channels: ["Slack #risk-alerts"],
+          }
+        : undefined;
+    return {
+      model: "demo-analytic-assistant",
+      answer:
+        payload.context === "analytics"
+          ? "I found a pattern worth reviewing: concentrated anomalies appear around high model score, new-card usage, and short user age cohorts. In a real backend deployment this response can be generated through Gemini using GEMINI_API_KEY."
+          : payload.context === "alerts"
+            ? "I drafted an anomaly alert configuration with signal, threshold, severity, window, and channels. Tune the threshold after observing the false-positive rate."
+            : "I drafted a controlled fraud rule and Python preview. Run a simulation before deployment to compare bloqueo and eficiencia.",
+      insights: payload.dataset_summary
+        ? [
+            `Dataset profile: ${payload.dataset_summary}`,
+            "Prioritize segments with high fraud amount concentration before adding hard rejection rules.",
+            "Use alerts for distribution drift; use rules for explicit decisioning.",
+          ]
+        : [
+            "New-card cohorts and high model score buckets are useful first cuts for investigation.",
+            "Check amount-weighted efficiency before changing an action from review to reject.",
+          ],
+      suggested_rule,
+      suggested_alarm,
+      python_code: suggested_rule ? ruleToPython(suggested_rule) : undefined,
+    };
+  },
   createPr: async (id: string): Promise<PrResponse> => ({
     pr_url: "https://github.com/mschapi/fraud-rules-mvp/pull/demo",
     title: `Deploy rule ${id}`,
@@ -381,6 +447,11 @@ const liveApi = {
     request<AiSuggestion>("/ai/rule-suggestion", {
       method: "POST",
       body: JSON.stringify({ message }),
+    }),
+  assistantChat: (payload: AssistantChatRequest) =>
+    request<AssistantChatResponse>("/ai/chat", {
+      method: "POST",
+      body: JSON.stringify(payload),
     }),
   createPr: (id: string) =>
     request<PrResponse>(`/rules/${id}/create-pr`, {

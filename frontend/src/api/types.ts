@@ -74,6 +74,23 @@ export type AiSuggestion = {
   python_code?: string;
 };
 
+export type AssistantContext = "rules" | "alerts" | "analytics";
+
+export type AssistantChatRequest = {
+  message: string;
+  context: AssistantContext;
+  dataset_summary?: string;
+};
+
+export type AssistantChatResponse = {
+  answer: string;
+  insights: string[];
+  suggested_rule?: RulePayload;
+  suggested_alarm?: AlarmPayload;
+  python_code?: string;
+  model: string;
+};
+
 export type PrResponse = {
   pr_url: string;
   yaml_content: string;

@@ -1,5 +1,6 @@
 import { BarChart3, BellRing, Bot, ListChecks } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
+import { FloatingAssistant } from "./FloatingAssistant";
 
 export function AppLayout() {
   const logoUrl = `${import.meta.env.BASE_URL}brand/neural-co-logo.svg`;
@@ -58,6 +59,7 @@ export function AppLayout() {
       <main className="mx-auto max-w-7xl px-5 py-6">
         <Outlet />
       </main>
+      <FloatingAssistant />
     </div>
   );
 }

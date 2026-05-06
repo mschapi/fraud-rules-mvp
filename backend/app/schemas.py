@@ -98,6 +98,19 @@ class AiSuggestionResponse(BaseModel):
     warnings: list[str]
 
 
+class AssistantChatRequest(BaseModel):
+    message: str = Field(min_length=1)
+    context: Literal["rules", "alerts", "analytics"]
+    dataset_summary: str | None = None
+
+
+class AssistantChatResponse(BaseModel):
+    answer: str
+    insights: list[str]
+    model: str
+    python_code: str | None = None
+
+
 class CreatePrResponse(BaseModel):
     pr_url: str
     yaml_content: str

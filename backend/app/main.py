@@ -15,6 +15,8 @@ from app.repositories import create_rule, create_simulation_run, get_rule, list_
 from app.schemas import (
     AiSuggestionRequest,
     AiSuggestionResponse,
+    AssistantChatRequest,
+    AssistantChatResponse,
     CreatePrResponse,
     RuleCreate,
     RuleOut,
@@ -24,7 +26,7 @@ from app.schemas import (
     SimulationRunOut,
     Variable,
 )
-from app.services.ai import AiRuleSuggestionService
+from app.services.ai import AiRuleSuggestionService, AnalyticAssistantService
 from app.services.pr import PullRequestService
 from app.services.simulation import SimulationService
 from app.services.validation import RuleValidationService
@@ -50,6 +52,7 @@ app.add_middleware(
 validator = RuleValidationService()
 simulation_service = SimulationService()
 ai_service = AiRuleSuggestionService()
+analytic_assistant_service = AnalyticAssistantService()
 yaml_service = RuleYamlService()
 pr_service = PullRequestService(yaml_service)
 
@@ -146,6 +149,11 @@ def ai_rule_suggestion(payload: AiSuggestionRequest) -> AiSuggestionResponse:
     suggestion = ai_service.suggest(payload.message)
     validator.validate_rule(suggestion.proposed_rule)
     return suggestion
+
+
+@app.post("/ai/chat", response_model=AssistantChatResponse)
+def ai_chat(payload: AssistantChatRequest) -> AssistantChatResponse:
+    return analytic_assistant_service.chat(payload)
 
 
 @app.post("/rules/{rule_id}/create-pr", response_model=CreatePrResponse)

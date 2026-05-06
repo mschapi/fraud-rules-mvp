@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bot, Code2, Send, Wand2 } from "lucide-react";
+import { Bot, Code2, Database, Send, Upload, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -31,6 +31,8 @@ export function AssistantPage() {
   const [suggestion, setSuggestion] = useState<AiSuggestion | null>(null);
   const [editableRule, setEditableRule] = useState<RulePayload | null>(null);
   const [editableAlarm, setEditableAlarm] = useState<AlarmPayload | null>(null);
+  const [datasetSummary, setDatasetSummary] = useState("");
+  const [dbSource, setDbSource] = useState("risk_warehouse.transactions_last_30d");
   const navigate = useNavigate();
   const variablesQuery = useQuery({ queryKey: ["variables"], queryFn: api.variables });
   const mutation = useMutation({
@@ -60,9 +62,9 @@ export function AssistantPage() {
       <div className="rounded-lg border border-line bg-white/75 p-5 shadow-[0_18px_45px_rgba(16,24,40,0.06)]">
         <div className="flex flex-col justify-between gap-3 lg:flex-row lg:items-start">
           <div>
-            <h2 className="text-3xl font-extrabold tracking-tight text-ink">AI assistant</h2>
+            <h2 className="text-3xl font-extrabold tracking-tight text-ink">Analytic assistant workbench</h2>
             <p className="mt-1 text-sm font-medium text-muted">
-              {mode === "rules" ? "Turn plain language into a controlled structured draft rule." : "Turn plain language into an anomaly alarm configuration."}
+              Upload a CSV or select a database source, then ask for fraud insights, rule ideas, or anomaly alerts.
             </p>
           </div>
           <ModeSwitch value={mode} onChange={(nextMode) => { setMode(nextMode); setSuggestion(null); setEditableRule(null); setEditableAlarm(null); }} />
@@ -70,6 +72,32 @@ export function AssistantPage() {
       </div>
 
       <section className="card p-4">
+        <div className="mb-4 grid gap-3 lg:grid-cols-2">
+          <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-dashed border-line bg-white p-4 text-sm font-semibold text-slate-700 hover:border-accent/50">
+            <Upload size={18} className="text-accent" aria-hidden="true" />
+            Upload CSV context
+            <input
+              className="hidden"
+              type="file"
+              accept=".csv,text/csv"
+              onChange={async (event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                const rows = (await file.text()).trim().split(/\r?\n/).filter(Boolean);
+                const columns = rows[0]?.split(",").length ?? 0;
+                setDatasetSummary(`${rows.length - 1} rows and ${columns} columns from ${file.name}`);
+              }}
+            />
+          </label>
+          <label className="field rounded-lg border border-line bg-white p-4">
+            <span className="label flex items-center gap-2">
+              <Database size={16} className="text-accent" aria-hidden="true" />
+              Database source
+            </span>
+            <input className="input" value={dbSource} onChange={(event) => setDbSource(event.target.value)} />
+          </label>
+        </div>
+        {datasetSummary ? <p className="mb-4 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">{datasetSummary}</p> : null}
         <div className="mb-4 flex items-start gap-3 rounded-md border border-[#ead3da] bg-[#fff8fa] p-3">
           <Bot className="mt-0.5 text-accent" size={20} aria-hidden="true" />
           <p className="text-sm font-medium text-slate-700">
@@ -85,7 +113,7 @@ export function AssistantPage() {
         <div className="mt-3 flex justify-end">
           <button className="btn btn-primary" onClick={() => (mode === "rules" ? mutation.mutate(message) : suggestAlarm(message))} disabled={!message.trim() || mutation.isPending}>
             <Send size={16} aria-hidden="true" />
-            Ask assistant
+            Ask workbench
           </button>
         </div>
         {mutation.error ? <p className="mt-3 text-sm text-rose-700">{mutation.error.message}</p> : null}
