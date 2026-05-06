@@ -59,6 +59,7 @@ export type AiSuggestion = {
   proposed_rule: RulePayload;
   explanation: string;
   warnings: string[];
+  python_code?: string;
 };
 
 export type PrResponse = {

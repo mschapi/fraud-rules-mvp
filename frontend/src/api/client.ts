@@ -1,4 +1,5 @@
 import type { AiSuggestion, PrResponse, Rule, RulePayload, SimulationResponse, Variable } from "./types";
+import { ruleToPython } from "../features/rules/pythonGenerator";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 const IS_DEMO = import.meta.env.VITE_DEMO_MODE === "true";
@@ -182,23 +183,33 @@ const demoApi = {
     writeRules(rules.map((item) => (item.id === id ? { ...item, last_simulation: metrics } : item)));
     return { metrics, warnings: ["Demo mode uses deterministic mock historical transactions."] };
   },
-  suggestRule: async (message: string): Promise<AiSuggestion> => ({
-    proposed_rule: {
+  suggestRule: async (message: string): Promise<AiSuggestion> => {
+    const lowered = message.toLowerCase();
+    const proposed_rule: RulePayload = {
       name: "ai_suggested_rule",
-      description: "Draft rule suggested from natural language",
-      action: "review",
+      description: "Draft rule generated from an assistant request",
+      action: lowered.includes("reject") || lowered.includes("rechaz") ? "reject" : "review",
       conditions: {
-        all: message.toLowerCase().includes("card")
+        all: lowered.includes("python") || lowered.includes("card") || lowered.includes("tarjeta")
           ? [
               { field: "is_new_card", operator: "==", value: true },
               { field: "model_score", operator: ">=", value: 0.75 },
             ]
+          : lowered.includes("new") || lowered.includes("nuevo")
+            ? [
+                { field: "user_age_days", operator: "<=", value: 7 },
+                { field: "tx_count_10m", operator: ">=", value: 3 },
+              ]
           : [{ field: "model_score", operator: ">=", value: 0.75 }],
       },
-    },
-    explanation: "Demo assistant maps common phrases to controlled catalog fields.",
-    warnings: ["Demo mode does not call an AI API."],
-  }),
+    };
+    return {
+      proposed_rule,
+      python_code: ruleToPython(proposed_rule),
+      explanation: "Demo assistant maps common phrases to controlled catalog fields and renders deployable Python.",
+      warnings: ["Demo mode does not call an AI API. The generated Python is deterministic from the structured rule."],
+    };
+  },
   createPr: async (id: string): Promise<PrResponse> => ({
     pr_url: "https://github.com/mschapi/fraud-rules-mvp/pull/demo",
     title: `Deploy rule ${id}`,
