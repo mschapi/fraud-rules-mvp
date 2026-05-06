@@ -80,3 +80,28 @@ export type PrResponse = {
   title: string;
   branch: string;
 };
+
+export type AlarmOperator = ">" | ">=" | "<" | "<=" | "outside_band";
+export type AlarmSeverity = "low" | "medium" | "high" | "critical";
+export type AlarmStatus = "active" | "draft" | "muted";
+
+export type AlarmPayload = {
+  name: string;
+  description: string;
+  signal: string;
+  operator: AlarmOperator;
+  threshold: number;
+  window: string;
+  severity: AlarmSeverity;
+  channels: string[];
+};
+
+export type Alarm = AlarmPayload & {
+  id: string;
+  status: AlarmStatus;
+  created_at: string;
+  updated_at: string;
+  last_triggered_at: string | null;
+  anomaly_rate_pct: number;
+  monitored_events: number;
+};

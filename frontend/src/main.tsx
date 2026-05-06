@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { AppLayout } from "./ui/AppLayout";
+import { AlarmsPage } from "./pages/AlarmsPage";
 import { AssistantPage } from "./pages/AssistantPage";
 import { OverviewPage } from "./pages/OverviewPage";
 import { RuleBuilderPage } from "./pages/RuleBuilderPage";
@@ -22,6 +23,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/" element={<Navigate to="/overview" replace />} />
             <Route path="/overview" element={<OverviewPage />} />
             <Route path="/rules" element={<RulesDashboard />} />
+            <Route path="/alarms" element={<AlarmsPage />} />
             <Route path="/rules/new" element={<RuleBuilderPage />} />
             <Route path="/rules/:id" element={<RuleDetailPage />} />
             <Route path="/assistant" element={<AssistantPage />} />

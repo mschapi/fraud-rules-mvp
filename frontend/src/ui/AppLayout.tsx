@@ -1,4 +1,4 @@
-import { BarChart3, Bot, ListChecks } from "lucide-react";
+import { BarChart3, BellRing, Bot, ListChecks } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
 export function AppLayout() {
@@ -33,6 +33,15 @@ export function AppLayout() {
             >
               <ListChecks size={16} aria-hidden="true" />
               Rules
+            </NavLink>
+            <NavLink
+              to="/alarms"
+              className={({ isActive }) =>
+                `btn ${isActive ? "btn-primary" : "btn-secondary"}`
+              }
+            >
+              <BellRing size={16} aria-hidden="true" />
+              Alarms
             </NavLink>
             <NavLink
               to="/assistant"

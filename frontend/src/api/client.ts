@@ -1,4 +1,4 @@
-import type { AiSuggestion, PrResponse, Rule, RulePayload, SimulationResponse, SimulationRun, Variable } from "./types";
+import type { AiSuggestion, Alarm, AlarmPayload, PrResponse, Rule, RulePayload, SimulationResponse, SimulationRun, Variable } from "./types";
 import { ruleToPython } from "../features/rules/pythonGenerator";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
@@ -114,6 +114,60 @@ const demoRules: Rule[] = [
   },
 ];
 
+const demoAlarms: Alarm[] = [
+  {
+    id: "volume_drop_checkout_ar",
+    name: "volume_drop_checkout_ar",
+    description: "Detects an abnormal drop in checkout transaction volume for Argentina.",
+    signal: "checkout_tx_volume_zscore",
+    operator: "<",
+    threshold: -2.5,
+    window: "15m",
+    severity: "high",
+    channels: ["Slack #risk-alerts", "PagerDuty Risk"],
+    status: "active",
+    created_at: now,
+    updated_at: now,
+    last_triggered_at: now,
+    anomaly_rate_pct: 1.8,
+    monitored_events: 18420,
+  },
+  {
+    id: "approval_rate_drop_new_cards",
+    name: "approval_rate_drop_new_cards",
+    description: "Flags sharp approval-rate drops for new-card cohorts.",
+    signal: "new_card_approval_rate_delta",
+    operator: "<",
+    threshold: -8,
+    window: "30m",
+    severity: "medium",
+    channels: ["Slack #payments"],
+    status: "draft",
+    created_at: now,
+    updated_at: now,
+    last_triggered_at: null,
+    anomaly_rate_pct: 0.9,
+    monitored_events: 9360,
+  },
+  {
+    id: "model_score_distribution_shift",
+    name: "model_score_distribution_shift",
+    description: "Monitors distribution shifts in model score percentiles.",
+    signal: "model_score_p95_delta",
+    operator: ">",
+    threshold: 12,
+    window: "1h",
+    severity: "critical",
+    channels: ["Slack #risk-alerts", "Email fraud-ops"],
+    status: "active",
+    created_at: now,
+    updated_at: now,
+    last_triggered_at: now,
+    anomaly_rate_pct: 2.6,
+    monitored_events: 22110,
+  },
+];
+
 function readRules(): Rule[] {
   const stored = window.localStorage.getItem("fraud-rules-demo");
   if (!stored) return demoRules;
@@ -122,6 +176,30 @@ function readRules(): Rule[] {
 
 function writeRules(rules: Rule[]) {
   window.localStorage.setItem("fraud-rules-demo", JSON.stringify(rules));
+}
+
+function readAlarms(): Alarm[] {
+  const stored = window.localStorage.getItem("fraud-alarms-demo");
+  if (!stored) return demoAlarms;
+  return JSON.parse(stored) as Alarm[];
+}
+
+function writeAlarms(alarms: Alarm[]) {
+  window.localStorage.setItem("fraud-alarms-demo", JSON.stringify(alarms));
+}
+
+function toAlarm(payload: AlarmPayload, status: Alarm["status"] = "active"): Alarm {
+  const timestamp = new Date().toISOString();
+  return {
+    ...payload,
+    id: payload.name.trim().toLowerCase().replace(/\s+/g, "_"),
+    status,
+    created_at: timestamp,
+    updated_at: timestamp,
+    last_triggered_at: null,
+    anomaly_rate_pct: Number((Math.abs(payload.threshold) / 10 + 0.8).toFixed(2)),
+    monitored_events: 12000 + Math.round(Math.abs(payload.threshold) * 420),
+  };
 }
 
 function readSimulationRuns(ruleId: string): SimulationRun[] {
@@ -243,6 +321,25 @@ const demoApi = {
     branch: `rules/${id}`,
     yaml_content: `id: ${id}\nstatus: ready_for_review\nsource: demo\n`,
   }),
+  alarms: async () => readAlarms(),
+  createAlarm: async (payload: AlarmPayload) => {
+    const alarm = toAlarm(payload);
+    writeAlarms([alarm, ...readAlarms().filter((item) => item.id !== alarm.id)]);
+    return alarm;
+  },
+  updateAlarm: async (id: string, payload: AlarmPayload & { status: Alarm["status"] }) => {
+    const alarms = readAlarms();
+    const existing = alarms.find((item) => item.id === id);
+    const alarm: Alarm = {
+      ...toAlarm(payload, payload.status),
+      id,
+      created_at: existing?.created_at ?? new Date().toISOString(),
+      last_triggered_at: existing?.last_triggered_at ?? null,
+      updated_at: new Date().toISOString(),
+    };
+    writeAlarms(alarms.map((item) => (item.id === id ? alarm : item)));
+    return alarm;
+  },
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -289,6 +386,9 @@ const liveApi = {
     request<PrResponse>(`/rules/${id}/create-pr`, {
       method: "POST",
     }),
+  alarms: async () => demoAlarms,
+  createAlarm: async (payload: AlarmPayload) => toAlarm(payload),
+  updateAlarm: async (id: string, payload: AlarmPayload & { status: Alarm["status"] }) => ({ ...toAlarm(payload, payload.status), id }),
 };
 
 export const api = IS_DEMO ? demoApi : liveApi;
